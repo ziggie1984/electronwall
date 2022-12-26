@@ -15,6 +15,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var htlcStatistics types.HtlcStatistics
+
 // getHtlcForwardEvent returns a struct containing relevant information about the current
 // forward request that the decision engine can then use
 func (app *App) getHtlcForwardEvent(ctx context.Context, event *routerrpc.ForwardHtlcInterceptRequest) (types.HtlcForwardEvent, error) {
@@ -259,6 +261,7 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 
 		switch event.Event.(type) {
 		case *routerrpc.HtlcEvent_SettleEvent:
+			htlcStatistics.Settled += 1
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("SettleEvent")
 				// contextLogger.Debugf("[forward] Preimage: %s", hex.EncodeToString(event.GetSettleEvent().Preimage))
@@ -270,6 +273,7 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 			}
 
 		case *routerrpc.HtlcEvent_ForwardFailEvent:
+			htlcStatistics.ForwardFail += 1
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("ForwardFailEvent")
 				// contextLogger.Debugf("[forward] Reason: %s", event.GetForwardFailEvent())
@@ -279,6 +283,7 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 			}
 
 		case *routerrpc.HtlcEvent_ForwardEvent:
+			htlcStatistics.TotalForwards += 1
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("ForwardEvent")
 			} else {
@@ -288,7 +293,9 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 			// log.Debugf("[forward] Details: %s", event.GetForwardEvent().String())
 
 		case *routerrpc.HtlcEvent_LinkFailEvent:
+			htlcStatistics.LinkFails += 1
 			telegramNotifier.Notify(fmt.Sprintf("[forward] ⚠️ HTLC LinkFailEvent (outgoing chan_id: %s, reason: %s", ParseChannelID(event.OutgoingChannelId), event.GetLinkFailEvent().FailureString))
+			telegramNotifier.Notify(fmt.Sprintf("HTLC-Stats: Settled %d, LinkFail: %d, ForwardFail %d, TotalForwards%d", htlcStatistics.Settled, htlcStatistics.LinkFails, htlcStatistics.ForwardFail, htlcStatistics.TotalForwards))
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("LinkFailEvent")
 				// contextLogger(event).Debugf("[forward] Reason: %s", event.GetLinkFailEvent().FailureString)
