@@ -20,7 +20,11 @@ var Configuration = struct {
 	ForwardMode          string   `yaml:"forward-mode"`
 	ForwardAllowlist     []string `yaml:"forward-allowlist"`
 	ForwardDenylist      []string `yaml:"forward-denylist"`
-	ApiRules             struct {
+	TelegramNotification struct {
+		Token  string `yaml:"telegram-token"`
+		ChatId string `yaml:"telegram-chatid"`
+	} `yaml:"telegram"`
+	ApiRules struct {
 		Apply bool `yaml:"apply"`
 		OneMl struct {
 			Active  bool `yaml:"active"`

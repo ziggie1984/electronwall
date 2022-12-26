@@ -43,6 +43,15 @@ func (app *App) GetChannelAcceptEvent(ctx context.Context, req lnrpc.ChannelAcce
 
 // DispatchChannelAcceptor is the channel acceptor event loop
 func (app *App) DispatchChannelAcceptor(ctx context.Context) {
+	var telegramNotificator *TelegramNotificator
+	if config.Configuration.TelegramNotification.ChatId != "" && config.Configuration.TelegramNotification.Token != "" {
+		telegram, err := NewTelegramNotificator()
+		if err != nil {
+			log.Errorf("telegram notifier error: %v", err)
+		}
+		telegramNotificator = telegram
+	}
+
 	// the channel event logger
 	go func() {
 		err := app.logChannelEvents(ctx)
@@ -53,7 +62,7 @@ func (app *App) DispatchChannelAcceptor(ctx context.Context) {
 
 	// the channel event interceptor
 	go func() {
-		err := app.interceptChannelEvents(ctx)
+		err := app.interceptChannelEvents(ctx, telegramNotificator)
 		if err != nil {
 			log.Errorf("channel interceptor error: %v", err)
 		}
@@ -65,7 +74,7 @@ func (app *App) DispatchChannelAcceptor(ctx context.Context) {
 
 }
 
-func (app *App) interceptChannelEvents(ctx context.Context) error {
+func (app *App) interceptChannelEvents(ctx context.Context, telegramNotifier *TelegramNotificator) error {
 	// get the lnd grpc connection
 	acceptClient, err := app.lnd.channelAcceptor(ctx)
 	if err != nil {
@@ -141,6 +150,7 @@ func (app *App) interceptChannelEvents(ctx context.Context) error {
 				contextLogger.Infof("allow")
 			} else {
 				log.Infof("[channel] ✅ Allow channel %s", channel_info_string)
+				telegramNotifier.Notify(fmt.Sprintf("[channel] ✅ Allow channel %s", channel_info_string))
 			}
 			res = lnrpc.ChannelAcceptResponse{Accept: true,
 				PendingChanId:   req.PendingChanId,
@@ -156,6 +166,7 @@ func (app *App) interceptChannelEvents(ctx context.Context) error {
 				contextLogger.Infof("deny")
 			} else {
 				log.Infof("[channel] ❌ Deny channel %s", channel_info_string)
+				telegramNotifier.Notify(fmt.Sprintf("[channel] ❌ Deny channel %s", channel_info_string))
 			}
 			res = lnrpc.ChannelAcceptResponse{Accept: false,
 				Error: config.Configuration.ChannelRejectMessage}
