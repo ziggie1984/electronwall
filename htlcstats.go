@@ -74,6 +74,7 @@ func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *Tel
 				log.Error("htlc stats error", err)
 			}
 			timer.Reset(time.Second * 60)
+			wg.Done()
 		}()
 		wg.Wait()
 
