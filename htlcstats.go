@@ -103,7 +103,7 @@ func (stat *HtlcStatistics) get30Days() string {
 }
 
 func (stat *HtlcStatistics) postStats(ctx context.Context) {
-	var cycleTime time.Duration = 6 * time.Second
+	var cycleTime time.Duration = 6 * time.Hour
 
 	timer := time.NewTimer(cycleTime)
 	defer timer.Stop()
