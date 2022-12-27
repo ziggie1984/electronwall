@@ -60,9 +60,11 @@ func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *Tel
 
 	timer := time.NewTimer(time.Second * 60)
 	defer timer.Stop()
+	var wg sync.WaitGroup
 
 	for {
 		log.Debug("Posting HTLC Statistics")
+		wg.Add(1)
 		go func() {
 			<-timer.C
 			err := telegramNotifier.Notify(fmt.Sprintf("HTLC-Stats (1 Day): Settled %d, LinkFail: %d, ForwardFail %d, TotalForwards%d", stat.CounterWeek[stat.WeekDay].Settled,
@@ -73,6 +75,7 @@ func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *Tel
 			}
 			timer.Reset(time.Second * 60)
 		}()
+		wg.Wait()
 
 	}
 }
