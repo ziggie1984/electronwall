@@ -68,7 +68,7 @@ func NewHtlcStats(ctx context.Context) *HtlcStatistics {
 }
 
 func (stat *HtlcStatistics) get1Day() string {
-	return fmt.Sprintf("HTLC-Stats (1 Day): Settled %d, LinkFail %d, ForwardFail %d, TotalForwards %d", stat.CounterWeek[stat.WeekDay].Settled,
+	return fmt.Sprintf("HTLC-Stats (1 Day): Settled %d, LinkFail %d, ForwardFail %d, ForwardEventss %d", stat.CounterWeek[stat.WeekDay].Settled,
 		stat.CounterWeek[stat.WeekDay].LinkFails, stat.CounterWeek[stat.WeekDay].ForwardFails, stat.CounterWeek[stat.WeekDay].ForwardEvents)
 }
 
@@ -86,7 +86,7 @@ func (stat *HtlcStatistics) get7Days() string {
 }
 
 func (stat *HtlcStatistics) postStats(ctx context.Context) {
-	var cycleTime time.Duration = 60 * time.Second
+	var cycleTime time.Duration = 60 * time.Minute
 
 	timer := time.NewTimer(cycleTime)
 	defer timer.Stop()
@@ -113,7 +113,15 @@ func (stat *HtlcStatistics) postStats(ctx context.Context) {
 
 func (stat *HtlcStatistics) saveState() error {
 
-	fileName := "htlcstats.json"
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	// Construct the path to the file in the home directory
+	fileName := homeDir + "htlcstats.json"
+
 	os.Stat(fileName)
 	f, ferr := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
 	if ferr != nil {
@@ -122,10 +130,10 @@ func (stat *HtlcStatistics) saveState() error {
 	}
 	defer f.Close()
 	content, _ := json.MarshalIndent(*stat, "", " ")
-	_, err := f.Write(content)
+	_, err = f.Write(content)
 
 	if err != nil {
-		log.Error("Error writing htlc stats to %s: %s", fileName, err)
+		log.Errorf("Error writing htlc stats to %s: %s", fileName, err)
 		return err
 	}
 
@@ -134,15 +142,22 @@ func (stat *HtlcStatistics) saveState() error {
 }
 
 func (stat *HtlcStatistics) loadState() error {
-	fileName := "htlcstats.json"
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	// Construct the path to the file in the home directory
+	fileName := homeDir + "htlcstats.json"
 	bytes, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Error("Error reading htlc stats from file %s,%s", fileName, err)
+		log.Errorf("Error reading htlc stats from file %s,%s", fileName, err)
 		return err
 	}
 	err = json.Unmarshal(bytes, &stat)
 	if err != nil {
-		log.Error("Error unmarshal file %s,%s", fileName, err)
+		log.Errorf("Error unmarshal file %s,%s", fileName, err)
 		return err
 	}
 
