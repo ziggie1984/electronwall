@@ -19,9 +19,10 @@ type HtlcCounter struct {
 }
 
 type HtlcStatistics struct {
-	CounterWeek [Last7Days]HtlcCounter `json:"week_summary"`
-	LastUpdate  time.Time              `json:"last_update"`
-	WeekDay     int                    `json:"current_day"`
+	CounterDays [NumberDays]HtlcCounter `json:"counter_days"`
+	Position    int                     `json:"position"`
+	LastUpdate  time.Time               `json:"last_update"`
+	Day         int                     `json:"current_day"`
 }
 type HtlcEvent int
 
@@ -32,29 +33,30 @@ const (
 	ForwardEvent
 )
 
-const Last7Days = 7
+const NumberDays = 30
 
 func (stat *HtlcStatistics) count(event HtlcEvent) {
 
-	prevDay := stat.WeekDay
-	stat.WeekDay = time.Now().Day() % Last7Days
-	if prevDay != stat.WeekDay {
-		stat.CounterWeek[stat.WeekDay].Settled = 0
-		stat.CounterWeek[stat.WeekDay].LinkFails = 0
-		stat.CounterWeek[stat.WeekDay].ForwardEvents = 0
-		stat.CounterWeek[stat.WeekDay].ForwardFails = 0
+	prevDay := stat.Day
+	day := time.Now().Minute()
+	if prevDay != day {
+		stat.Position = (stat.Position + 1) % NumberDays
+		stat.CounterDays[stat.Position].Settled = 0
+		stat.CounterDays[stat.Position].LinkFails = 0
+		stat.CounterDays[stat.Position].ForwardEvents = 0
+		stat.CounterDays[stat.Position].ForwardFails = 0
 	}
 	stat.LastUpdate = time.Now()
 
 	switch event {
 	case Settled:
-		stat.CounterWeek[stat.WeekDay].Settled += 1
+		stat.CounterDays[stat.Day].Settled += 1
 	case LinkFail:
-		stat.CounterWeek[stat.WeekDay].LinkFails += 1
+		stat.CounterDays[stat.Day].LinkFails += 1
 	case ForwardFail:
-		stat.CounterWeek[stat.WeekDay].ForwardFails += 1
+		stat.CounterDays[stat.Day].ForwardFails += 1
 	case ForwardEvent:
-		stat.CounterWeek[stat.WeekDay].ForwardEvents += 1
+		stat.CounterDays[stat.Day].ForwardEvents += 1
 	}
 }
 
@@ -68,25 +70,40 @@ func NewHtlcStats(ctx context.Context) *HtlcStatistics {
 }
 
 func (stat *HtlcStatistics) get1Day() string {
-	return fmt.Sprintf("HTLC-Stats (1 Day): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", stat.CounterWeek[stat.WeekDay].Settled,
-		stat.CounterWeek[stat.WeekDay].LinkFails, stat.CounterWeek[stat.WeekDay].ForwardFails, stat.CounterWeek[stat.WeekDay].ForwardEvents)
+	return fmt.Sprintf("HTLC-Stats (Last 1 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", stat.CounterDays[stat.Day].Settled,
+		stat.CounterDays[stat.Day].LinkFails, stat.CounterDays[stat.Day].ForwardFails, stat.CounterDays[stat.Day].ForwardEvents)
 }
 
 func (stat *HtlcStatistics) get7Days() string {
 	var totalWeek HtlcCounter
-	for _, dayStat := range stat.CounterWeek {
-		totalWeek.Settled += dayStat.Settled
-		totalWeek.ForwardEvents += dayStat.ForwardEvents
-		totalWeek.ForwardFails += dayStat.ForwardFails
-		totalWeek.LinkFails += dayStat.LinkFails
+	for i := 0; i < 7; i++ {
+		day := (stat.Position - i) % NumberDays
+		totalWeek.Settled += stat.CounterDays[day].Settled
+		totalWeek.ForwardEvents += stat.CounterDays[day].ForwardEvents
+		totalWeek.ForwardFails += stat.CounterDays[day].ForwardFails
+		totalWeek.LinkFails += stat.CounterDays[day].LinkFails
 	}
-	return fmt.Sprintf("HTLC-Stats (7 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", totalWeek.Settled,
+	return fmt.Sprintf("HTLC-Stats (Last 7 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", totalWeek.Settled,
 		totalWeek.LinkFails, totalWeek.ForwardFails, totalWeek.ForwardEvents)
 
 }
 
+func (stat *HtlcStatistics) get30Days() string {
+	var totalMonth HtlcCounter
+	for i := 0; i < 30; i++ {
+		day := (stat.Position - i) % NumberDays
+		totalMonth.Settled += stat.CounterDays[day].Settled
+		totalMonth.ForwardEvents += stat.CounterDays[day].ForwardEvents
+		totalMonth.ForwardFails += stat.CounterDays[day].ForwardFails
+		totalMonth.LinkFails += stat.CounterDays[day].LinkFails
+	}
+	return fmt.Sprintf("HTLC-Stats (Last 30 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", totalMonth.Settled,
+		totalMonth.LinkFails, totalMonth.ForwardFails, totalMonth.ForwardEvents)
+
+}
+
 func (stat *HtlcStatistics) postStats(ctx context.Context) {
-	var cycleTime time.Duration = 60 * time.Minute
+	var cycleTime time.Duration = 6 * time.Second
 
 	timer := time.NewTimer(cycleTime)
 	defer timer.Stop()
@@ -96,8 +113,8 @@ func (stat *HtlcStatistics) postStats(ctx context.Context) {
 		wg.Add(1)
 		go func() {
 			<-timer.C
-			log.Debug("Posting HTLC Statistics")
-			message := stat.get1Day() + "\n" + stat.get7Days()
+			log.Debug("Posting HTLC Statistics via Telegram")
+			message := stat.get1Day() + "\n" + stat.get7Days() + "\n" + stat.get30Days()
 			err := telegramNotifier.Notify(message)
 			if err != nil {
 				log.Error("htlc stats error", err)
