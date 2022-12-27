@@ -50,13 +50,13 @@ func (stat *HtlcStatistics) count(event HtlcEvent) {
 
 	switch event {
 	case Settled:
-		stat.CounterDays[stat.Day].Settled += 1
+		stat.CounterDays[stat.Position].Settled += 1
 	case LinkFail:
-		stat.CounterDays[stat.Day].LinkFails += 1
+		stat.CounterDays[stat.Position].LinkFails += 1
 	case ForwardFail:
-		stat.CounterDays[stat.Day].ForwardFails += 1
+		stat.CounterDays[stat.Position].ForwardFails += 1
 	case ForwardEvent:
-		stat.CounterDays[stat.Day].ForwardEvents += 1
+		stat.CounterDays[stat.Position].ForwardEvents += 1
 	}
 }
 
