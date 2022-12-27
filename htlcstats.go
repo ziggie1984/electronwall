@@ -70,8 +70,8 @@ func NewHtlcStats(ctx context.Context) *HtlcStatistics {
 }
 
 func (stat *HtlcStatistics) get1Day() string {
-	return fmt.Sprintf("HTLC-Stats (Last 1 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", stat.CounterDays[stat.Day].Settled,
-		stat.CounterDays[stat.Day].LinkFails, stat.CounterDays[stat.Day].ForwardFails, stat.CounterDays[stat.Day].ForwardEvents)
+	return fmt.Sprintf("HTLC-Stats (Last 1 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", stat.CounterDays[stat.Position].Settled,
+		stat.CounterDays[stat.Position].LinkFails, stat.CounterDays[stat.Position].ForwardFails, stat.CounterDays[stat.Position].ForwardEvents)
 }
 
 func (stat *HtlcStatistics) get7Days() string {
