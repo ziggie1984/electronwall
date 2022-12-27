@@ -68,7 +68,7 @@ func NewHtlcStats(ctx context.Context) *HtlcStatistics {
 }
 
 func (stat *HtlcStatistics) get1Day() string {
-	return fmt.Sprintf("HTLC-Stats (1 Day): Settled %d, LinkFail %d, ForwardFail %d, ForwardEventss %d", stat.CounterWeek[stat.WeekDay].Settled,
+	return fmt.Sprintf("HTLC-Stats (1 Day): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", stat.CounterWeek[stat.WeekDay].Settled,
 		stat.CounterWeek[stat.WeekDay].LinkFails, stat.CounterWeek[stat.WeekDay].ForwardFails, stat.CounterWeek[stat.WeekDay].ForwardEvents)
 }
 
@@ -80,7 +80,7 @@ func (stat *HtlcStatistics) get7Days() string {
 		totalWeek.ForwardFails += dayStat.ForwardFails
 		totalWeek.LinkFails += dayStat.LinkFails
 	}
-	return fmt.Sprintf("HTLC-Stats (7 Days): Settled %d, LinkFail %d, ForwardFail %d, TotalForwards %d", totalWeek.Settled,
+	return fmt.Sprintf("HTLC-Stats (7 Days): Settled %d, LinkFail %d, ForwardFail %d, ForwardEvents %d", totalWeek.Settled,
 		totalWeek.LinkFails, totalWeek.ForwardFails, totalWeek.ForwardEvents)
 
 }
