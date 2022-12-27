@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -10,16 +12,16 @@ import (
 )
 
 type HtlcCounter struct {
-	LinkFails     int
-	ForwardFails  int
-	Settled       int
-	ForwardEvents int
+	LinkFails     int `json:"linkfails"`
+	ForwardFails  int `json:"forwardsfails"`
+	Settled       int `json:"settled"`
+	ForwardEvents int `json:"forwardevents"`
 }
 
 type HtlcStatistics struct {
-	CounterWeek [Last7Days]HtlcCounter
-	LastUpdate  time.Time
-	WeekDay     int
+	CounterWeek [Last7Days]HtlcCounter `json:"week_summary"`
+	LastUpdate  time.Time              `json:"last_update"`
+	WeekDay     int                    `json:"current_day"`
 }
 type HtlcEvent int
 
@@ -57,9 +59,12 @@ func (stat *HtlcStatistics) count(event HtlcEvent) {
 }
 
 func NewHtlcStats(ctx context.Context) *HtlcStatistics {
-	return &HtlcStatistics{
-		LastUpdate: time.Now(),
+	htlcState := &HtlcStatistics{}
+	err := htlcState.loadState()
+	if err != nil {
+		htlcState.LastUpdate = time.Now()
 	}
+	return htlcState
 }
 
 func (stat *HtlcStatistics) get1Day() string {
@@ -97,12 +102,51 @@ func (stat *HtlcStatistics) postStats(ctx context.Context) {
 			if err != nil {
 				log.Error("htlc stats error", err)
 			}
+			stat.saveState()
 			timer.Reset(cycleTime)
 			wg.Done()
 		}()
 		wg.Wait()
 
 	}
+}
+
+func (stat *HtlcStatistics) saveState() error {
+
+	fileName := "htlcstats.json"
+	os.Stat(fileName)
+	f, ferr := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
+	if ferr != nil {
+		log.Errorf("Error saving htlc stats to %s: %s", fileName, ferr)
+		return ferr
+	}
+	defer f.Close()
+	content, _ := json.MarshalIndent(*stat, "", " ")
+	_, err := f.Write(content)
+
+	if err != nil {
+		log.Error("Error writing htlc stats to %s: %s", fileName, err)
+		return err
+	}
+
+	return nil
+
+}
+
+func (stat *HtlcStatistics) loadState() error {
+	fileName := "htlcstats.json"
+	bytes, err := os.ReadFile(fileName)
+	if err != nil {
+		log.Error("Error reading htlc stats from file %s,%s", fileName, err)
+		return err
+	}
+	err = json.Unmarshal(bytes, &stat)
+	if err != nil {
+		log.Error("Error unmarshal file %s,%s", fileName, err)
+		return err
+	}
+
+	return nil
 }
 
 func (stat *HtlcStatistics) DispatchHtlcStats(ctx context.Context) {
