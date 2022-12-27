@@ -22,6 +22,11 @@ const (
 	ctxKeyWaitGroup key = iota
 )
 
+var (
+	telegramNotifier *TelegramNotifier
+	htlcStats        *HtlcStatistics
+)
+
 type App struct {
 	lnd    lndclient
 	myInfo *lnrpc.GetInfoResponse
@@ -88,7 +93,6 @@ func main() {
 	SetLogger(config.Configuration.Debug, config.Configuration.LogJson)
 	Welcome()
 	ctx := context.Background()
-	var telegramNotifier *TelegramNotifier
 	if config.Configuration.TelegramNotification.ChatId != "" && config.Configuration.TelegramNotification.Token != "" {
 		telegram, err := NewTelegramNotifier()
 		if err != nil {
@@ -97,7 +101,7 @@ func main() {
 		telegramNotifier = telegram
 	}
 
-	htlcStats := NewHtlcStats(ctx)
+	htlcStats = NewHtlcStats(ctx)
 
 	for {
 		lnd, err := newLndClient(ctx)
@@ -119,14 +123,14 @@ func main() {
 		wg.Add(3)
 
 		// channel acceptor
-		app.DispatchChannelAcceptor(ctx, telegramNotifier)
+		app.DispatchChannelAcceptor(ctx)
 
 		// htlc acceptor
-		app.DispatchHTLCAcceptor(ctx, htlcStats, telegramNotifier)
+		app.DispatchHTLCAcceptor(ctx)
 
 		// starts the htlc statistic accumulator
 		// which also posts the stats regularly via telegram
-		htlcStats.DispatchHtlcStats(ctx, telegramNotifier)
+		htlcStats.DispatchHtlcStats(ctx)
 
 		wg.Wait()
 		log.Info("All routines stopped. Waiting for new connection.")

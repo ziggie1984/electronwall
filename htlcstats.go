@@ -34,7 +34,14 @@ const Last7Days = 7
 
 func (stat *HtlcStatistics) count(event HtlcEvent) {
 
+	prevDay := stat.WeekDay
 	stat.WeekDay = time.Now().Day() % Last7Days
+	if prevDay != stat.WeekDay {
+		stat.CounterWeek[stat.WeekDay].Settled = 0
+		stat.CounterWeek[stat.WeekDay].LinkFails = 0
+		stat.CounterWeek[stat.WeekDay].ForwardEvents = 0
+		stat.CounterWeek[stat.WeekDay].ForwardFails = 0
+	}
 	stat.LastUpdate = time.Now()
 
 	switch event {
@@ -73,8 +80,7 @@ func (stat *HtlcStatistics) get7Days() string {
 
 }
 
-func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *TelegramNotifier) {
-
+func (stat *HtlcStatistics) postStats(ctx context.Context) {
 	var cycleTime time.Duration = 60 * time.Minute
 
 	timer := time.NewTimer(cycleTime)
@@ -86,12 +92,11 @@ func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *Tel
 		go func() {
 			<-timer.C
 			log.Debug("Posting HTLC Statistics")
-			err := telegramNotifier.Notify(stat.get1Day())
+			message := stat.get1Day() + "\n" + stat.get7Days()
+			err := telegramNotifier.Notify(message)
 			if err != nil {
 				log.Error("htlc stats error", err)
 			}
-			// Post 7 Days Stats
-			telegramNotifier.Notify(stat.get7Days())
 			timer.Reset(cycleTime)
 			wg.Done()
 		}()
@@ -100,11 +105,11 @@ func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *Tel
 	}
 }
 
-func (stat *HtlcStatistics) DispatchHtlcStats(ctx context.Context, telegramNotifier *TelegramNotifier) {
+func (stat *HtlcStatistics) DispatchHtlcStats(ctx context.Context) {
 
 	// Htlc statistics
 	go func() {
-		stat.postStats(ctx, telegramNotifier)
+		stat.postStats(ctx)
 
 		// release wait group for channel acceptor
 		ctx.Value(ctxKeyWaitGroup).(*sync.WaitGroup).Done()

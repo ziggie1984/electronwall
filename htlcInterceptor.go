@@ -61,9 +61,9 @@ func (app *App) getHtlcForwardEvent(ctx context.Context, event *routerrpc.Forwar
 }
 
 // DispatchHTLCAcceptor is the HTLC acceptor event loop
-func (app *App) DispatchHTLCAcceptor(ctx context.Context, htlcStats *HtlcStatistics, telegramNotfier *TelegramNotifier) {
+func (app *App) DispatchHTLCAcceptor(ctx context.Context) {
 	go func() {
-		err := app.logHtlcEvents(ctx, htlcStats, telegramNotfier)
+		err := app.logHtlcEvents(ctx)
 		if err != nil {
 			log.Error("htlc event logger error",
 				"err", err)
@@ -220,7 +220,7 @@ func (app *App) htlcInterceptDecision(ctx context.Context, event *routerrpc.Forw
 }
 
 // logHtlcEvents reports on incoming htlc events
-func (app *App) logHtlcEvents(ctx context.Context, htclStats *HtlcStatistics, telegramNotifier *TelegramNotifier) error {
+func (app *App) logHtlcEvents(ctx context.Context) error {
 	// htlc event subscriber, reports on incoming htlc events
 	stream, err := app.lnd.subscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
 	if err != nil {
@@ -251,7 +251,7 @@ func (app *App) logHtlcEvents(ctx context.Context, htclStats *HtlcStatistics, te
 		switch event.Event.(type) {
 		case *routerrpc.HtlcEvent_SettleEvent:
 
-			htclStats.count(Settled)
+			htlcStats.count(Settled)
 
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("SettleEvent")
@@ -265,7 +265,7 @@ func (app *App) logHtlcEvents(ctx context.Context, htclStats *HtlcStatistics, te
 
 		case *routerrpc.HtlcEvent_ForwardFailEvent:
 
-			htclStats.count(ForwardFail)
+			htlcStats.count(ForwardFail)
 
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("ForwardFailEvent")
@@ -277,7 +277,7 @@ func (app *App) logHtlcEvents(ctx context.Context, htclStats *HtlcStatistics, te
 
 		case *routerrpc.HtlcEvent_ForwardEvent:
 
-			htclStats.count(ForwardEvent)
+			htlcStats.count(ForwardEvent)
 
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("ForwardEvent")
@@ -289,7 +289,7 @@ func (app *App) logHtlcEvents(ctx context.Context, htclStats *HtlcStatistics, te
 
 		case *routerrpc.HtlcEvent_LinkFailEvent:
 
-			htclStats.count(LinkFail)
+			htlcStats.count(LinkFail)
 
 			// telegramNotifier.Notify(fmt.Sprintf("[forward] ⚠️ HTLC LinkFailEvent (outgoing chan_id: %s, reason: %s", ParseChannelID(event.OutgoingChannelId), event.GetLinkFailEvent().FailureString))
 
