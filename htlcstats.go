@@ -77,7 +77,7 @@ func (stat *HtlcStatistics) get1Day() string {
 func (stat *HtlcStatistics) get7Days() string {
 	var totalWeek HtlcCounter
 	for i := 0; i < 7; i++ {
-		day := (stat.Position - i) % NumberDays
+		day := (stat.Position - i + NumberDays) % NumberDays
 		totalWeek.Settled += stat.CounterDays[day].Settled
 		totalWeek.ForwardEvents += stat.CounterDays[day].ForwardEvents
 		totalWeek.ForwardFails += stat.CounterDays[day].ForwardFails
@@ -91,7 +91,7 @@ func (stat *HtlcStatistics) get7Days() string {
 func (stat *HtlcStatistics) get30Days() string {
 	var totalMonth HtlcCounter
 	for i := 0; i < 30; i++ {
-		day := (stat.Position - i) % NumberDays
+		day := (stat.Position - i + NumberDays) % NumberDays
 		totalMonth.Settled += stat.CounterDays[day].Settled
 		totalMonth.ForwardEvents += stat.CounterDays[day].ForwardEvents
 		totalMonth.ForwardFails += stat.CounterDays[day].ForwardFails
