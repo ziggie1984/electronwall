@@ -38,8 +38,8 @@ const NumberDays = 30
 func (stat *HtlcStatistics) count(event HtlcEvent) {
 
 	prevDay := stat.Day
-	day := time.Now().Minute()
-	if prevDay != day {
+	stat.Day = time.Now().Minute()
+	if prevDay != stat.Day {
 		stat.Position = (stat.Position + 1) % NumberDays
 		stat.CounterDays[stat.Position].Settled = 0
 		stat.CounterDays[stat.Position].LinkFails = 0
