@@ -15,8 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var htlcStatistics types.HtlcStatistics
-
 // getHtlcForwardEvent returns a struct containing relevant information about the current
 // forward request that the decision engine can then use
 func (app *App) getHtlcForwardEvent(ctx context.Context, event *routerrpc.ForwardHtlcInterceptRequest) (types.HtlcForwardEvent, error) {
@@ -63,18 +61,9 @@ func (app *App) getHtlcForwardEvent(ctx context.Context, event *routerrpc.Forwar
 }
 
 // DispatchHTLCAcceptor is the HTLC acceptor event loop
-func (app *App) DispatchHTLCAcceptor(ctx context.Context) {
-	var telegramNotificator *TelegramNotificator
-	if config.Configuration.TelegramNotification.ChatId != "" && config.Configuration.TelegramNotification.Token != "" {
-		telegram, err := NewTelegramNotificator()
-		if err != nil {
-			log.Errorf("telegram notifier error: %v", err)
-		}
-		telegramNotificator = telegram
-	}
-
+func (app *App) DispatchHTLCAcceptor(ctx context.Context, htlcStats *HtlcStatistics, telegramNotfier *TelegramNotifier) {
 	go func() {
-		err := app.logHtlcEvents(ctx, telegramNotificator)
+		err := app.logHtlcEvents(ctx, htlcStats, telegramNotfier)
 		if err != nil {
 			log.Error("htlc event logger error",
 				"err", err)
@@ -231,7 +220,7 @@ func (app *App) htlcInterceptDecision(ctx context.Context, event *routerrpc.Forw
 }
 
 // logHtlcEvents reports on incoming htlc events
-func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNotificator) error {
+func (app *App) logHtlcEvents(ctx context.Context, htclStats *HtlcStatistics, telegramNotifier *TelegramNotifier) error {
 	// htlc event subscriber, reports on incoming htlc events
 	stream, err := app.lnd.subscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
 	if err != nil {
@@ -261,7 +250,9 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 
 		switch event.Event.(type) {
 		case *routerrpc.HtlcEvent_SettleEvent:
-			htlcStatistics.Settled += 1
+
+			htclStats.count(Settled)
+
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("SettleEvent")
 				// contextLogger.Debugf("[forward] Preimage: %s", hex.EncodeToString(event.GetSettleEvent().Preimage))
@@ -273,7 +264,9 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 			}
 
 		case *routerrpc.HtlcEvent_ForwardFailEvent:
-			htlcStatistics.ForwardFail += 1
+
+			htclStats.count(ForwardFail)
+
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("ForwardFailEvent")
 				// contextLogger.Debugf("[forward] Reason: %s", event.GetForwardFailEvent())
@@ -283,7 +276,9 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 			}
 
 		case *routerrpc.HtlcEvent_ForwardEvent:
-			htlcStatistics.TotalForwards += 1
+
+			htclStats.count(ForwardEvent)
+
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("ForwardEvent")
 			} else {
@@ -293,9 +288,11 @@ func (app *App) logHtlcEvents(ctx context.Context, telegramNotifier *TelegramNot
 			// log.Debugf("[forward] Details: %s", event.GetForwardEvent().String())
 
 		case *routerrpc.HtlcEvent_LinkFailEvent:
-			htlcStatistics.LinkFails += 1
-			telegramNotifier.Notify(fmt.Sprintf("[forward] ⚠️ HTLC LinkFailEvent (outgoing chan_id: %s, reason: %s", ParseChannelID(event.OutgoingChannelId), event.GetLinkFailEvent().FailureString))
-			telegramNotifier.Notify(fmt.Sprintf("HTLC-Stats: Settled %d, LinkFail: %d, ForwardFail %d, TotalForwards%d", htlcStatistics.Settled, htlcStatistics.LinkFails, htlcStatistics.ForwardFail, htlcStatistics.TotalForwards))
+
+			htclStats.count(LinkFail)
+
+			// telegramNotifier.Notify(fmt.Sprintf("[forward] ⚠️ HTLC LinkFailEvent (outgoing chan_id: %s, reason: %s", ParseChannelID(event.OutgoingChannelId), event.GetLinkFailEvent().FailureString))
+
 			if config.Configuration.LogJson {
 				contextLogger(event).Infof("LinkFailEvent")
 				// contextLogger(event).Debugf("[forward] Reason: %s", event.GetLinkFailEvent().FailureString)

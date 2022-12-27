@@ -88,6 +88,17 @@ func main() {
 	SetLogger(config.Configuration.Debug, config.Configuration.LogJson)
 	Welcome()
 	ctx := context.Background()
+	var telegramNotifier *TelegramNotifier
+	if config.Configuration.TelegramNotification.ChatId != "" && config.Configuration.TelegramNotification.Token != "" {
+		telegram, err := NewTelegramNotifier()
+		if err != nil {
+			log.Errorf("telegram notifier error: %v", err)
+		}
+		telegramNotifier = telegram
+	}
+
+	htlcStats := NewHtlcStats(ctx)
+
 	for {
 		lnd, err := newLndClient(ctx)
 		if err != nil {
@@ -105,13 +116,17 @@ func main() {
 
 		var wg sync.WaitGroup
 		ctx = context.WithValue(ctx, ctxKeyWaitGroup, &wg)
-		wg.Add(2)
+		wg.Add(3)
 
 		// channel acceptor
-		app.DispatchChannelAcceptor(ctx)
+		app.DispatchChannelAcceptor(ctx, telegramNotifier)
 
 		// htlc acceptor
-		app.DispatchHTLCAcceptor(ctx)
+		app.DispatchHTLCAcceptor(ctx, htlcStats, telegramNotifier)
+
+		// starts the htlc statistic accumulator
+		// which also posts the stats regularly via telegram
+		htlcStats.DispatchHtlcStats(ctx, telegramNotifier)
 
 		wg.Wait()
 		log.Info("All routines stopped. Waiting for new connection.")

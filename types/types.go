@@ -22,10 +22,3 @@ type ChannelAcceptEvent struct {
 	OneMl      api.OneML_NodeInfoResponse
 	Amboss     api.Amboss_NodeInfoResponse
 }
-
-type HtlcStatistics struct {
-	LinkFails     int
-	ForwardFail   int
-	Settled       int
-	TotalForwards int
-}

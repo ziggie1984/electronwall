@@ -42,16 +42,7 @@ func (app *App) GetChannelAcceptEvent(ctx context.Context, req lnrpc.ChannelAcce
 }
 
 // DispatchChannelAcceptor is the channel acceptor event loop
-func (app *App) DispatchChannelAcceptor(ctx context.Context) {
-	var telegramNotificator *TelegramNotificator
-	if config.Configuration.TelegramNotification.ChatId != "" && config.Configuration.TelegramNotification.Token != "" {
-		telegram, err := NewTelegramNotificator()
-		if err != nil {
-			log.Errorf("telegram notifier error: %v", err)
-		}
-		telegramNotificator = telegram
-	}
-
+func (app *App) DispatchChannelAcceptor(ctx context.Context, telegramNotifier *TelegramNotifier) {
 	// the channel event logger
 	go func() {
 		err := app.logChannelEvents(ctx)
@@ -62,7 +53,7 @@ func (app *App) DispatchChannelAcceptor(ctx context.Context) {
 
 	// the channel event interceptor
 	go func() {
-		err := app.interceptChannelEvents(ctx, telegramNotificator)
+		err := app.interceptChannelEvents(ctx, telegramNotifier)
 		if err != nil {
 			log.Errorf("channel interceptor error: %v", err)
 		}
@@ -74,7 +65,7 @@ func (app *App) DispatchChannelAcceptor(ctx context.Context) {
 
 }
 
-func (app *App) interceptChannelEvents(ctx context.Context, telegramNotifier *TelegramNotificator) error {
+func (app *App) interceptChannelEvents(ctx context.Context, telegramNotifier *TelegramNotifier) error {
 	// get the lnd grpc connection
 	acceptClient, err := app.lnd.channelAcceptor(ctx)
 	if err != nil {
