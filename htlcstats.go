@@ -75,7 +75,7 @@ func (stat *HtlcStatistics) get7Days() string {
 
 func (stat *HtlcStatistics) postStats(ctx context.Context, telegramNotifier *TelegramNotifier) {
 
-	var cycleTime time.Duration = 60 * time.Second
+	var cycleTime time.Duration = 60 * time.Minute
 
 	timer := time.NewTimer(cycleTime)
 	defer timer.Stop()
