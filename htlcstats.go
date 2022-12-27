@@ -120,7 +120,7 @@ func (stat *HtlcStatistics) saveState() error {
 	}
 
 	// Construct the path to the file in the home directory
-	fileName := homeDir + "htlcstats.json"
+	fileName := homeDir + "/htlcstats.json"
 
 	os.Stat(fileName)
 	f, ferr := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
@@ -149,7 +149,7 @@ func (stat *HtlcStatistics) loadState() error {
 	}
 
 	// Construct the path to the file in the home directory
-	fileName := homeDir + "htlcstats.json"
+	fileName := homeDir + "/htlcstats.json"
 	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Errorf("Error reading htlc stats from file %s,%s", fileName, err)
